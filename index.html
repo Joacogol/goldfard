@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Goldfarb Document Processor - Auto Setup</title>
+    <title>Goldfarb Document Processor - Sistema Completo</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -292,6 +292,67 @@
             font-size: 1rem;
         }
 
+        .sheets-link-container {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .sheets-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .sheets-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+        }
+
+        .process-another {
+            margin-top: 1rem;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
         input[type="file"] {
             display: none;
         }
@@ -300,6 +361,16 @@
             color: #64748b;
             font-size: 0.875rem;
             margin-top: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.75rem;
+            }
+            
+            .result-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -312,6 +383,26 @@
         <div class="header">
             <h1>🚀 Goldfarb Document Processor</h1>
             <p style="color: #94a3b8;">Sistema automático de procesamiento con IA</p>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-container">
+            <div class="stat-box">
+                <div class="stat-number" id="totalDocs">0</div>
+                <div class="stat-label">Documentos Procesados</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="totalRows">0</div>
+                <div class="stat-label">Filas en Sheets</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="successRate">100%</div>
+                <div class="stat-label">Tasa de Éxito</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="lastProcess">--</div>
+                <div class="stat-label">Último Proceso</div>
+            </div>
         </div>
 
         <!-- Setup Modal (aparece al inicio) -->
@@ -369,6 +460,23 @@
                 </div>
             </div>
             <div class="result-grid" id="resultGrid"></div>
+            
+            <!-- Botones de acción -->
+            <div class="sheets-link-container">
+                <h4 style="color: #10b981; margin-bottom: 1rem;">✅ Datos Cargados Exitosamente</h4>
+                <a href="https://docs.google.com/spreadsheets/d/1jOV-4pmg9Ecaohh1ixKI1RhbND-VxICgmVw96FxAcu0/" 
+                   target="_blank" 
+                   class="sheets-button">
+                    📊 Ver Planilla en Google Sheets
+                </a>
+                <br>
+                <button class="button process-another" onclick="resetForNewDocument()">
+                    📄 Procesar Otro Documento
+                </button>
+                <p style="color: #94a3b8; margin-top: 1rem; font-size: 0.875rem;">
+                    Los datos se encuentran en la pestaña correspondiente según el tipo de documento
+                </p>
+            </div>
         </div>
     </div>
 
@@ -378,8 +486,34 @@
         let API_KEY = localStorage.getItem('goldfarb_api_key') || '';
         let selectedFile = null;
 
+        // Statistics
+        let stats = {
+            total: parseInt(localStorage.getItem('goldfarb_total') || '0'),
+            rows: parseInt(localStorage.getItem('goldfarb_rows') || '0'),
+            success: parseInt(localStorage.getItem('goldfarb_success') || '0'),
+            attempts: parseInt(localStorage.getItem('goldfarb_attempts') || '0')
+        };
+
+        // Update statistics display
+        function updateStats() {
+            document.getElementById('totalDocs').textContent = stats.total;
+            document.getElementById('totalRows').textContent = stats.rows;
+            const rate = stats.attempts > 0 ? Math.round((stats.success / stats.attempts) * 100) : 100;
+            document.getElementById('successRate').textContent = rate + '%';
+            
+            const lastTime = localStorage.getItem('goldfarb_last_process');
+            if (lastTime) {
+                const date = new Date(lastTime);
+                const hours = date.getHours().toString().padStart(2, '0');
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+                document.getElementById('lastProcess').textContent = `${hours}:${minutes}`;
+            }
+        }
+
         // Check if API key exists on load
         window.addEventListener('load', () => {
+            updateStats();
+            
             if (API_KEY) {
                 // API Key exists, hide modal and show status
                 document.getElementById('setupModal').classList.add('hidden');
@@ -492,6 +626,7 @@
                 return;
             }
 
+            stats.attempts++;
             document.getElementById('processing').className = 'processing active';
             document.getElementById('results').className = 'results';
 
@@ -506,7 +641,9 @@
                 await sendToSheets(extractedData);
                 
                 // If products exist, send them too
+                let totalRows = 1;
                 if (extractedData.data.products && extractedData.data.products.length > 0) {
+                    totalRows += extractedData.data.products.length;
                     const productsData = {
                         docType: 'products',
                         data: {
@@ -517,6 +654,17 @@
                     await sendToSheets(productsData);
                 }
                 
+                // Update statistics
+                stats.total++;
+                stats.rows += totalRows;
+                stats.success++;
+                localStorage.setItem('goldfarb_total', stats.total);
+                localStorage.setItem('goldfarb_rows', stats.rows);
+                localStorage.setItem('goldfarb_success', stats.success);
+                localStorage.setItem('goldfarb_attempts', stats.attempts);
+                localStorage.setItem('goldfarb_last_process', new Date().toISOString());
+                updateStats();
+                
                 // Show results
                 showResults(extractedData);
                 
@@ -526,6 +674,7 @@
                 console.error('Error:', error);
                 document.getElementById('processing').className = 'processing';
                 alert('Error procesando documento: ' + error.message);
+                localStorage.setItem('goldfarb_attempts', stats.attempts);
             }
         }
 
@@ -648,6 +797,14 @@
                 'transport': 'CRT/Transporte'
             };
             return names[docType] || docType;
+        }
+
+        // Reset for new document
+        function resetForNewDocument() {
+            document.getElementById('results').className = 'results';
+            document.getElementById('fileInput').value = '';
+            selectedFile = null;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         // Add keyboard shortcut to reset config
