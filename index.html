@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goldfarb Document Processor - Auto Setup</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f1f5f9;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid #334155;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Setup Modal */
+        .setup-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .setup-modal.hidden {
+            display: none;
+        }
+
+        .setup-box {
+            background: white;
+            color: #333;
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .setup-box h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .setup-box input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin: 1rem 0;
+        }
+
+        .setup-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .setup-box button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .setup-box button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .setup-box button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .setup-status {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: none;
+            font-size: 14px;
+        }
+
+        .setup-status.show {
+            display: block;
+        }
+
+        .setup-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .setup-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Main Upload Box */
+        .upload-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 20px;
+            padding: 3rem;
+            text-align: center;
+        }
+
+        .upload-area {
+            border: 2px dashed #334155;
+            border-radius: 16px;
+            padding: 4rem 2rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #2563eb;
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .upload-area.dragging {
+            border-color: #2563eb;
+            background: rgba(37, 99, 235, 0.1);
+            transform: scale(1.01);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .button {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            display: none;
+        }
+
+        .status-badge.show {
+            display: block;
+        }
+
+        .processing {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .processing.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 1rem;
+            border: 3px solid #334155;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .results {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .result-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #10b981;
+            font-size: 1.5rem;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .result-item {
+            background: rgba(30, 41, 59, 0.5);
+            padding: 1rem;
+            border-radius: 10px;
+            border: 1px solid #334155;
+        }
+
+        .result-label {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .result-value {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .help-text {
+            color: #64748b;
+            font-size: 0.875rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Status Badge -->
+        <div class="status-badge" id="statusBadge">✅ Sistema Activo</div>
+
+        <!-- Header -->
+        <div class="header">
+            <h1>🚀 Goldfarb Document Processor</h1>
+            <p style="color: #94a3b8;">Sistema automático de procesamiento con IA</p>
+        </div>
+
+        <!-- Setup Modal (aparece al inicio) -->
+        <div class="setup-modal" id="setupModal">
+            <div class="setup-box">
+                <h2>🔐 Configuración Inicial</h2>
+                <p style="color: #666; margin-bottom: 1rem;">
+                    Para usar el sistema, necesitas configurar tu API Key de OpenAI.
+                    <br><small>Esto solo se hace una vez y queda guardado en tu navegador.</small>
+                </p>
+                
+                <label style="font-weight: 600; color: #333;">API Key de OpenAI:</label>
+                <input type="password" id="apiKeyInput" placeholder="sk-proj-..." />
+                <p style="font-size: 12px; color: #999;">
+                    La API Key empieza con "sk-proj-" • 
+                    <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #667eea;">Obtener API Key</a>
+                </p>
+                
+                <button onclick="setupSystem()" id="setupBtn">Configurar Sistema</button>
+                
+                <div class="setup-status" id="setupStatus"></div>
+            </div>
+        </div>
+
+        <!-- Main Upload Box -->
+        <div class="upload-box">
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.txt" />
+                <div class="upload-icon">📤</div>
+                <h2>Arrastra tu documento aquí</h2>
+                <p style="color: #94a3b8; margin: 1rem 0;">o</p>
+                <button class="button" onclick="document.getElementById('fileInput').click()">
+                    📁 Seleccionar Archivo
+                </button>
+                <p class="help-text">
+                    PDF, JPG, PNG, TXT • Máx 20MB<br>
+                    Facturas, Listas de Productos, CRT/Transporte
+                </p>
+            </div>
+
+            <div class="processing" id="processing">
+                <div class="spinner"></div>
+                <h3>Procesando documento...</h3>
+                <p style="color: #94a3b8; margin-top: 0.5rem;">Extrayendo datos con IA</p>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results" id="results">
+            <div class="result-header">
+                <div class="result-icon">✅</div>
+                <div>
+                    <h3>Documento Procesado</h3>
+                    <p style="color: #94a3b8; font-size: 0.875rem;">Datos enviados a Google Sheets</p>
+                </div>
+            </div>
+            <div class="result-grid" id="resultGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzdMgGTSo1kCHKst_yInw0GPEMjQHUdJw0wzj0iXnut93o9E_oeQJ8y5QPPofHRlumP8w/exec';
+        let API_KEY = localStorage.getItem('goldfarb_api_key') || '';
+        let selectedFile = null;
+
+        // Check if API key exists on load
+        window.addEventListener('load', () => {
+            if (API_KEY) {
+                // API Key exists, hide modal and show status
+                document.getElementById('setupModal').classList.add('hidden');
+                document.getElementById('statusBadge').classList.add('show');
+                setupFileHandlers();
+            }
+        });
+
+        // Setup system with API Key
+        async function setupSystem() {
+            const apiKey = document.getElementById('apiKeyInput').value;
+            const statusDiv = document.getElementById('setupStatus');
+            const btn = document.getElementById('setupBtn');
+
+            if (!apiKey || !apiKey.startsWith('sk-')) {
+                statusDiv.className = 'setup-status error show';
+                statusDiv.innerHTML = '❌ Por favor ingresa una API Key válida';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Verificando...';
+            statusDiv.className = 'setup-status show';
+            statusDiv.innerHTML = '🔄 Verificando API Key...';
+
+            try {
+                // Test API Key
+                const response = await fetch('https://api.openai.com/v1/models', {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('API Key inválida o sin créditos');
+                }
+
+                // Save API Key
+                localStorage.setItem('goldfarb_api_key', apiKey);
+                API_KEY = apiKey;
+                
+                statusDiv.className = 'setup-status success show';
+                statusDiv.innerHTML = '✅ Sistema configurado correctamente';
+                
+                // Hide modal after 2 seconds
+                setTimeout(() => {
+                    document.getElementById('setupModal').classList.add('hidden');
+                    document.getElementById('statusBadge').classList.add('show');
+                    setupFileHandlers();
+                }, 2000);
+                
+            } catch (error) {
+                statusDiv.className = 'setup-status error show';
+                statusDiv.innerHTML = '❌ Error: ' + error.message;
+                btn.disabled = false;
+                btn.textContent = 'Configurar Sistema';
+            }
+        }
+
+        // Setup file handlers
+        function setupFileHandlers() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+
+            // Drag and drop
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragging');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragging');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragging');
+                if (e.dataTransfer.files.length > 0) {
+                    processFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            // File input
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    processFile(e.target.files[0]);
+                }
+            });
+        }
+
+        // Process file
+        async function processFile(file) {
+            if (!API_KEY) {
+                alert('Por favor configura tu API Key primero');
+                location.reload();
+                return;
+            }
+
+            selectedFile = file;
+            
+            // Validate file
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'text/plain'];
+            if (!validTypes.includes(file.type)) {
+                alert('Tipo de archivo no soportado');
+                return;
+            }
+
+            if (file.size > 20 * 1024 * 1024) {
+                alert('El archivo no debe superar los 20MB');
+                return;
+            }
+
+            document.getElementById('processing').className = 'processing active';
+            document.getElementById('results').className = 'results';
+
+            try {
+                // Read file
+                const content = await readFile(file);
+                
+                // Call OpenAI
+                const extractedData = await callOpenAI(content, file.type);
+                
+                // Send to Google Sheets
+                await sendToSheets(extractedData);
+                
+                // If products exist, send them too
+                if (extractedData.data.products && extractedData.data.products.length > 0) {
+                    const productsData = {
+                        docType: 'products',
+                        data: {
+                            invoiceNo: extractedData.data.invoiceNo,
+                            products: extractedData.data.products
+                        }
+                    };
+                    await sendToSheets(productsData);
+                }
+                
+                // Show results
+                showResults(extractedData);
+                
+                document.getElementById('processing').className = 'processing';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('processing').className = 'processing';
+                alert('Error procesando documento: ' + error.message);
+            }
+        }
+
+        // Read file content
+        function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                if (file.type.includes('image')) {
+                    reader.readAsDataURL(file);
+                } else {
+                    reader.readAsText(file);
+                }
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+            });
+        }
+
+        // Call OpenAI API
+        async function callOpenAI(content, fileType) {
+            const systemPrompt = `Eres un experto extrayendo datos de documentos logísticos.
+            Identifica el tipo: invoice (factura/proforma), products (lista productos), transport (CRT).
+            Extrae TODOS los datos disponibles.
+            Responde SOLO con JSON válido en formato:
+            {
+              "docType": "invoice|products|transport",
+              "data": {
+                // Para invoice incluir array products si hay lista de items
+                "invoiceNo": "", "issueDate": "", "customerPO": "", "vendor": "",
+                "buyer": "Juan Goldfarb S.A.", "totalUSD": "", "products": [...]
+              }
+            }`;
+
+            const messages = [
+                { role: "system", content: systemPrompt }
+            ];
+
+            if (fileType.includes('image')) {
+                messages.push({
+                    role: "user",
+                    content: [
+                        { type: "text", text: "Extrae todos los datos de este documento:" },
+                        { type: "image_url", image_url: { url: content } }
+                    ]
+                });
+            } else {
+                messages.push({
+                    role: "user",
+                    content: "Extrae todos los datos de este documento:\n\n" + content
+                });
+            }
+
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + API_KEY
+                },
+                body: JSON.stringify({
+                    model: fileType.includes('image') ? "gpt-4o" : "gpt-4-turbo-preview",
+                    messages: messages,
+                    temperature: 0.1,
+                    max_tokens: 4000,
+                    response_format: { type: "json_object" }
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || 'Error en OpenAI API');
+            }
+            
+            const result = await response.json();
+            return JSON.parse(result.choices[0].message.content);
+        }
+
+        // Send to Google Sheets
+        async function sendToSheets(data) {
+            await fetch(SHEETS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'text/plain',
+                },
+                body: JSON.stringify(data)
+            });
+            console.log('Enviado a Google Sheets:', data);
+        }
+
+        // Show results
+        function showResults(data) {
+            const resultGrid = document.getElementById('resultGrid');
+            resultGrid.innerHTML = '';
+            
+            const items = [
+                { label: 'Tipo de Documento', value: getDocTypeName(data.docType) },
+                { label: 'Número', value: data.data.invoiceNo || data.data.crtNo || 'N/A' },
+                { label: 'Fecha', value: data.data.issueDate || data.data.date || 'N/A' },
+                { label: 'Vendedor/Remitente', value: data.data.vendor || data.data.sender || 'N/A' },
+                { label: 'Total USD', value: data.data.totalUSD || 'N/A' },
+                { label: 'Productos', value: data.data.products ? data.data.products.length + ' items' : 'N/A' }
+            ];
+            
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.innerHTML = `
+                    <div class="result-label">${item.label}</div>
+                    <div class="result-value">${item.value}</div>
+                `;
+                resultGrid.appendChild(div);
+            });
+            
+            document.getElementById('results').className = 'results show';
+        }
+
+        function getDocTypeName(docType) {
+            const names = {
+                'invoice': 'Factura/Proforma',
+                'products': 'Detalle de Productos',
+                'transport': 'CRT/Transporte'
+            };
+            return names[docType] || docType;
+        }
+
+        // Add keyboard shortcut to reset config
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+Shift+R to reset
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                if (confirm('¿Resetear configuración y cambiar API Key?')) {
+                    localStorage.removeItem('goldfarb_api_key');
+                    location.reload();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
